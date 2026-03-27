@@ -3,12 +3,22 @@ import fetch from "node-fetch";
 import cors from "cors";
 import sqlite3 from "sqlite3";
 import bodyParser from "body-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Fix for __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const db = new sqlite3.Database("./history.db");
+// SQLite DB path
+const dbPath = path.join(__dirname, "history.db");
+const db = new sqlite3.Database(dbPath);
+
+// Create table if not exists
 db.run(`CREATE TABLE IF NOT EXISTS history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     prompt TEXT,
@@ -16,7 +26,8 @@ db.run(`CREATE TABLE IF NOT EXISTS history (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-const API_KEY = process.env.OPENAI_API_KEY || "YOUR_OPENAI_API_KEY_HERE";
+// OpenAI API key from Render environment
+const API_KEY = process.env.OPENAI_API_KEY;
 
 app.post("/ask", async (req, res) => {
     const { prompt } = req.body;
