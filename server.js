@@ -4,6 +4,7 @@ import cors from "cors";
 import sqlite3 from "sqlite3";
 import bodyParser from "body-parser";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 
 // Fix for __dirname in ESM
@@ -13,6 +14,23 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+app.use((req, res, next) => {
+    const expected = process.env.APP_PASSWORD;
+    if (!expected || expected.length < 20) return res.status(503).json({error: "Configure APP_PASSWORD with at least 20 characters"});
+    const header = req.headers.authorization || "";
+    let supplied = "";
+    if (header.startsWith("Basic ")) {
+        const value = Buffer.from(header.slice(6), "base64").toString("utf8");
+        const colon = value.indexOf(":");
+        if (colon >= 0) supplied = value.slice(colon + 1);
+    }
+    const digest = value => crypto.createHash("sha256").update(value).digest();
+    if (!crypto.timingSafeEqual(digest(supplied), digest(expected))) {
+        res.set("WWW-Authenticate", 'Basic realm="Business Dashboard"');
+        return res.status(401).json({error: "Authentication required"});
+    }
+    next();
+});
 
 // SQLite DB path
 const dbPath = path.join(__dirname, "history.db");
